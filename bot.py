@@ -1,53 +1,69 @@
 import os
 import io
 import json
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
-    filters, ContextTypes, ConversationHandler, CallbackQueryHandler
+    filters, ContextTypes, ConversationHandler
 )
 from PIL import Image, ImageDraw, ImageFont
 
 BOT_TOKEN = "7949631331:AAGdKHx_9hxXAgpDsQh68qbcCKboM0brHOE"
 TEMPLATE_FILE = "template.json"
 
-(WAIT_IMAGE, WAIT_TEXT1, WAIT_TEXT2, CHOOSE_FONT, CHOOSE_SIZE) = range(5)
+(WAIT_IMAGE, WAIT_FONT, WAIT_SIZE, WAIT_TEXT1, WAIT_TEXT2) = range(5)
 
 FONTS = {
-    "Classic":     "fonts/ProximaNova-Bold.ttf",
-    "Typewriter":  "fonts/CourierPrime-Bold.ttf",
-    "Neon":        "fonts/Orbitron-Bold.ttf",
-    "Serif":       "fonts/PlayfairDisplay-Bold.ttf",
-    "Handwriting": "fonts/DancingScript-Bold.ttf",
+    "1": ("Classic",     "fonts/ProximaNova-Bold.ttf"),
+    "2": ("Typewriter",  "fonts/CourierPrime-Bold.ttf"),
+    "3": ("Neon",        "fonts/Orbitron-Bold.ttf"),
+    "4": ("Serif",       "fonts/PlayfairDisplay-Bold.ttf"),
+    "5": ("Handwriting", "fonts/DancingScript-Bold.ttf"),
 }
 
-FONT_LABELS = {
-    "Classic":     "Classic — чистый и современный",
-    "Typewriter":  "Typewriter — печатная машинка",
-    "Neon":        "Neon — неон / глоу эффект",
-    "Serif":       "Serif — классика с засечками",
-    "Handwriting": "Handwriting — рукописный",
-}
+SIZES = {"1": 0.03, "2": 0.05, "3": 0.07, "4": 0.10}
 
-SIZES = {"S": 0.03, "M": 0.05, "L": 0.07, "XL": 0.10}
+FONT_MENU = (
+    "🎨 Выбери шрифт — отправь цифру:\n\n"
+    "1 — Classic (чистый, современный)\n"
+    "2 — Typewriter (печатная машинка)\n"
+    "3 — Neon (неоновый глоу)\n"
+    "4 — Serif (классика с засечками)\n"
+    "5 — Handwriting (рукописный)"
+)
+
+SIZE_MENU = (
+    "📏 Выбери размер — отправь цифру:\n\n"
+    "1 — S (мелкий)\n"
+    "2 — M (средний)\n"
+    "3 — L (крупный)\n"
+    "4 — XL (огромный)"
+)
 
 
-def load_template() -> dict:
+def load_template():
     if os.path.exists(TEMPLATE_FILE):
         with open(TEMPLATE_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
-def save_template(data: dict):
+def save_template(data):
     with open(TEMPLATE_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
 def get_font(font_name, size):
-    path = FONTS.get(font_name)
+    paths = {
+        "Classic":     "fonts/ProximaNova-Bold.ttf",
+        "Typewriter":  "fonts/CourierPrime-Bold.ttf",
+        "Neon":        "fonts/Orbitron-Bold.ttf",
+        "Serif":       "fonts/PlayfairDisplay-Bold.ttf",
+        "Handwriting": "fonts/DancingScript-Bold.ttf",
+    }
     try:
-        if path and os.path.exists(path):
-            return ImageFont.truetype(path, size)
+        p = paths.get(font_name, "")
+        if p and os.path.exists(p):
+            return ImageFont.truetype(p, size)
         for fallback in [
             "/System/Library/Fonts/Helvetica.ttc",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -64,8 +80,7 @@ def wrap_text(draw, text, font, max_width):
     lines, current = [], ""
     for word in words:
         test = (current + " " + word).strip()
-        bbox = draw.textbbox((0, 0), test, font=font)
-        if bbox[2] - bbox[0] <= max_width:
+        if draw.textbbox((0,0), test, font=font)[2] <= max_width:
             current = test
         else:
             if current:
@@ -76,11 +91,11 @@ def wrap_text(draw, text, font, max_width):
     return lines or [text]
 
 
-def render_image(image_bytes, text, font_name, size_key, neon=False):
+def render_image(image_bytes, text, font_name, size_val, neon=False):
     img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
     draw = ImageDraw.Draw(img)
     w, h = img.size
-    font_size = max(20, int(h * SIZES.get(size_key, 0.05)))
+    font_size = max(20, int(h * size_val))
     font = get_font(font_name, font_size)
     lines = wrap_text(draw, text, font, int(w * 0.9))
     line_height = font_size + int(font_size * 0.3)
@@ -94,15 +109,15 @@ def render_image(image_bytes, text, font_name, size_key, neon=False):
         y = y_start + i * line_height
         if neon:
             for spread in [8, 5, 3]:
-                for dx in range(-spread, spread + 1, 2):
-                    for dy in range(-spread, spread + 1, 2):
-                        draw.text((x + dx, y + dy), line, font=font, fill=(0, 200, 255, 80))
+                for dx in range(-spread, spread+1, 2):
+                    for dy in range(-spread, spread+1, 2):
+                        draw.text((x+dx, y+dy), line, font=font, fill=(0, 200, 255, 80))
             draw.text((x, y), line, font=font, fill=(180, 255, 255, 255))
         else:
             for dx in [-shadow, 0, shadow]:
                 for dy in [-shadow, 0, shadow]:
                     if dx != 0 or dy != 0:
-                        draw.text((x + dx, y + dy), line, font=font, fill=(0, 0, 0, 200))
+                        draw.text((x+dx, y+dy), line, font=font, fill=(0, 0, 0, 200))
             draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))
 
     out = io.BytesIO()
@@ -110,21 +125,23 @@ def render_image(image_bytes, text, font_name, size_key, neon=False):
     return out.getvalue()
 
 
-def font_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton(FONT_LABELS[f], callback_data=f"font_{f}")]
-        for f in FONTS
-    ])
+async def generate_and_send(update, context, settings):
+    image = context.user_data["image"]
+    font_name = settings["font"]
+    size_val  = settings["size_val"]
+    text1     = settings["text1"]
+    text2     = settings["text2"]
+    neon      = (font_name == "Neon")
+    try:
+        img1 = render_image(image, text1, font_name, size_val, neon=neon)
+        img2 = render_image(image, text2, font_name, size_val, neon=neon)
+        await update.message.reply_document(io.BytesIO(img1), filename="track_1.jpg", caption=f"🖼 {text1}")
+        await update.message.reply_document(io.BytesIO(img2), filename="track_2.jpg", caption="🎵 Текст трека")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {e}")
 
-def size_keyboard():
-    return InlineKeyboardMarkup([[
-        InlineKeyboardButton("S — мелкий",    callback_data="size_S"),
-        InlineKeyboardButton("M — средний",   callback_data="size_M"),
-    ],[
-        InlineKeyboardButton("L — крупный",   callback_data="size_L"),
-        InlineKeyboardButton("XL — огромный", callback_data="size_XL"),
-    ]])
 
+# ─── ХЕНДЛЕРЫ ────────────────────────────
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tmpl = load_template()
@@ -132,18 +149,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "👋 Привет!\n\n"
             f"📋 Активный шаблон:\n"
-            f"  • Шрифт: {tmpl.get('font','?')}\n"
-            f"  • Размер: {tmpl.get('size','?')}\n"
-            f"  • Текст 1: {tmpl.get('text1','?')}\n"
-            f"  • Текст 2: {tmpl.get('text2','?')}\n\n"
-            "📸 Просто кидай картинку — сразу получишь обе фотки!\n"
+            f"  • Шрифт: {tmpl.get('font')}\n"
+            f"  • Размер: {tmpl.get('size_label')}\n"
+            f"  • Текст 1: {tmpl.get('text1')}\n"
+            f"  • Текст 2: {tmpl.get('text2')}\n\n"
+            "📸 Кидай картинку — сразу получишь обе фотки!\n"
             "/newtemplate — изменить шаблон"
         )
     else:
         await update.message.reply_text(
             "👋 Привет!\n\n"
-            "📸 Кидай картинку чтобы начать\n"
-            "Один раз настроишь шаблон — потом просто кидай фото!"
+            "📸 Кидай картинку чтобы начать!"
         )
     return WAIT_IMAGE
 
@@ -170,37 +186,35 @@ async def receive_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tmpl = load_template()
     if tmpl:
         await update.message.reply_text("⏳ Применяю шаблон...")
-        await generate_and_send(update, context, tmpl["text2"], tmpl)
+        await generate_and_send(update, context, tmpl)
         context.user_data.clear()
         return WAIT_IMAGE
 
+    await update.message.reply_text(FONT_MENU)
+    return WAIT_FONT
+
+
+async def receive_font(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    txt = update.message.text.strip()
+    if txt not in FONTS:
+        await update.message.reply_text("Отправь цифру от 1 до 5 👆")
+        return WAIT_FONT
+    name, _ = FONTS[txt]
+    context.user_data["font"] = name
+    await update.message.reply_text(f"✅ Шрифт: {name}\n\n{SIZE_MENU}")
+    return WAIT_SIZE
+
+
+async def receive_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    txt = update.message.text.strip()
+    if txt not in SIZES:
+        await update.message.reply_text("Отправь цифру от 1 до 4 👆")
+        return WAIT_SIZE
+    labels = {"1": "S", "2": "M", "3": "L", "4": "XL"}
+    context.user_data["size_val"]   = SIZES[txt]
+    context.user_data["size_label"] = labels[txt]
     await update.message.reply_text(
-        "✅ Картинка получена!\n\n🎨 Выбери шрифт:",
-        reply_markup=font_keyboard()
-    )
-    return CHOOSE_FONT
-
-
-# ФИК ЗДЕСЬ: используем query.message.reply_text вместо query.edit_message_text
-async def choose_font(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    font = query.data.replace("font_", "")
-    context.user_data["font"] = font
-    await query.message.reply_text(
-        f"✅ Шрифт: {font}\n\n📏 Выбери размер текста:",
-        reply_markup=size_keyboard()
-    )
-    return CHOOSE_SIZE
-
-
-async def choose_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    size = query.data.replace("size_", "")
-    context.user_data["size"] = size
-    await query.message.reply_text(
-        f"✅ Размер: {size}\n\n"
+        f"✅ Размер: {labels[txt]}\n\n"
         "📝 Отправь текст для первой картинки\n(например: этот трек>>>)"
     )
     return WAIT_TEXT1
@@ -213,39 +227,24 @@ async def receive_text1(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def receive_text2(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text2 = update.message.text
     ud = context.user_data
     settings = {
-        "font":  ud.get("font", "Classic"),
-        "size":  ud.get("size", "M"),
-        "text1": ud.get("text1", "этот трек>>>"),
-        "text2": text2,
+        "font":        ud.get("font", "Classic"),
+        "size_val":    ud.get("size_val", 0.05),
+        "size_label":  ud.get("size_label", "M"),
+        "text1":       ud.get("text1", "этот трек>>>"),
+        "text2":       update.message.text,
     }
     await update.message.reply_text("⏳ Создаю картинки...")
-    await generate_and_send(update, context, text2, settings)
+    await generate_and_send(update, context, settings)
     save_template(settings)
     await update.message.reply_text(
         "✅ Готово! Шаблон сохранён 🔖\n\n"
-        "Теперь просто кидай картинку — сразу получишь обе фотки!\n"
+        "Теперь просто кидай картинку!\n"
         "/newtemplate — изменить шаблон"
     )
     context.user_data.clear()
     return WAIT_IMAGE
-
-
-async def generate_and_send(update, context, text2, settings):
-    image   = context.user_data["image"]
-    font    = settings["font"]
-    size    = settings["size"]
-    text1   = settings["text1"]
-    is_neon = (font == "Neon")
-    try:
-        img1 = render_image(image, text1, font, size, neon=is_neon)
-        img2 = render_image(image, text2, font, size, neon=is_neon)
-        await update.message.reply_document(document=io.BytesIO(img1), filename="track_1.jpg", caption=f"🖼 «{text1}»")
-        await update.message.reply_document(document=io.BytesIO(img2), filename="track_2.jpg", caption="🎵 Текст трека")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Ошибка: {e}")
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -263,14 +262,14 @@ def main():
             MessageHandler(filters.PHOTO | filters.Document.IMAGE, receive_image),
         ],
         states={
-            WAIT_IMAGE:  [
+            WAIT_IMAGE: [
                 MessageHandler(filters.PHOTO | filters.Document.IMAGE, receive_image),
                 CommandHandler("newtemplate", new_template),
             ],
-            CHOOSE_FONT: [CallbackQueryHandler(choose_font, pattern="^font_")],
-            CHOOSE_SIZE: [CallbackQueryHandler(choose_size, pattern="^size_")],
-            WAIT_TEXT1:  [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_text1)],
-            WAIT_TEXT2:  [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_text2)],
+            WAIT_FONT:  [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_font)],
+            WAIT_SIZE:  [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_size)],
+            WAIT_TEXT1: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_text1)],
+            WAIT_TEXT2: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_text2)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
