@@ -13,7 +13,7 @@ TEMPLATE_FILE = "template.json"
 
 (WAIT_IMAGE, WAIT_FONT, WAIT_SIZE, WAIT_TEXT1, WAIT_TEXT2) = range(5)
 
-# Все шрифты с поддержкой кириллицы
+# Все шрифты с поддержкой кириллиц
 FONTS = {
     "1": ("Classic",     "fonts/Classic.ttf"),
     "2": ("Typewriter",  "fonts/Typewriter.ttf"),
