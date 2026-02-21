@@ -1,29 +1,21 @@
 #!/usr/bin/env python3
-"""
-Скачивает шрифты TikTok-стилей с Google Fonts.
-Запусти один раз: python3 download_fonts.py
-"""
+"""Скачивает шрифты с поддержкой кириллицы."""
 import os
 import urllib.request
 
 os.makedirs("fonts", exist_ok=True)
 
 FONTS = {
-    # Classic (Proxima Nova недоступна бесплатно, берём Nunito Bold — очень похоже)
-    "fonts/ProximaNova-Bold.ttf": 
+    "fonts/Classic.ttf":
         "https://github.com/google/fonts/raw/main/ofl/nunito/Nunito%5Bwght%5D.ttf",
-    # Typewriter
-    "fonts/CourierPrime-Bold.ttf":
-        "https://github.com/google/fonts/raw/main/ofl/courierprime/CourierPrime-Bold.ttf",
-    # Neon (Orbitron)
-    "fonts/Orbitron-Bold.ttf":
-        "https://github.com/google/fonts/raw/main/ofl/orbitron/Orbitron%5Bwght%5D.ttf",
-    # Serif
-    "fonts/PlayfairDisplay-Bold.ttf":
-        "https://github.com/google/fonts/raw/main/ofl/playfairdisplay/PlayfairDisplay%5Bwght%5D.ttf",
-    # Handwriting
-    "fonts/DancingScript-Bold.ttf":
-        "https://github.com/google/fonts/raw/main/ofl/dancingscript/DancingScript%5Bwght%5D.ttf",
+    "fonts/Typewriter.ttf":
+        "https://github.com/google/fonts/raw/main/ofl/courierPrime/CourierPrime-Regular.ttf",
+    "fonts/Neon.ttf":
+        "https://github.com/google/fonts/raw/main/ofl/russoto/Russo_One.ttf",
+    "fonts/Serif.ttf":
+        "https://github.com/google/fonts/raw/main/ofl/ptsserif/PTSerif-Regular.ttf",
+    "fonts/Handwriting.ttf":
+        "https://github.com/google/fonts/raw/main/ofl/marckscript/MarckScript-Regular.ttf",
 }
 
 for path, url in FONTS.items():
@@ -37,4 +29,4 @@ for path, url in FONTS.items():
     except Exception as e:
         print(f"❌ Ошибка {path}: {e}")
 
-print("\n🎉 Готово! Теперь запускай bot.py")
+print("\n🎉 Шрифты готовы!")
