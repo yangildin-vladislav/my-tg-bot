@@ -11,6 +11,16 @@ from PIL import Image, ImageDraw, ImageFont
 
 BOT_TOKEN = "7949631331:AAGdKHx_9hxXAgpDsQh68qbcCKboM0brHOE"
 TEMPLATE_FILE = "template.json"
+COUNTER_FILE = "counter.json"
+
+def get_next_counter():
+    counter = 1
+    if os.path.exists(COUNTER_FILE):
+        with open(COUNTER_FILE, "r") as f:
+            counter = json.load(f).get("count", 1)
+    with open(COUNTER_FILE, "w") as f:
+        json.dump({"count": counter + 1}, f)
+    return counter
 
 (WAIT_IMAGE, WAIT_FONT, WAIT_SIZE, WAIT_TEXT1, WAIT_TEXT2) = range(5)
 
@@ -158,8 +168,9 @@ async def generate_and_send(update, context, settings):
     try:
         img1 = render_image(image, text1, style, font_size)
         img2 = render_image(image, text2, style, font_size)
-        await update.message.reply_document(io.BytesIO(img1), filename="track_1.jpg", caption=f"🖼 {text1}")
-        await update.message.reply_document(io.BytesIO(img2), filename="track_2.jpg", caption="🎵 Текст трека")
+        n = get_next_counter()
+        await update.message.reply_document(io.BytesIO(img1), filename=f"{n} - левое.jpg", caption=f"🖼 {text1}")
+        await update.message.reply_document(io.BytesIO(img2), filename=f"{n} - правое.jpg", caption="🎵 Текст трека")
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {e}")
 
