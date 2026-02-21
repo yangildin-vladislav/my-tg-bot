@@ -74,19 +74,27 @@ def save_template(data):
 
 
 def wrap_text(draw, text, font, max_width):
-    words = text.split()
-    lines, current = [], ""
-    for word in words:
-        test = (current + " " + word).strip()
-        if draw.textbbox((0, 0), test, font=font)[2] <= max_width:
-            current = test
-        else:
-            if current:
-                lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
-    return lines or [text]
+    """Поддерживает переносы через Enter и автоперенос длинных строк."""
+    result = []
+    # Сначала разбиваем по энтерам
+    for paragraph in text.split("\n"):
+        if paragraph.strip() == "":
+            result.append("")  # пустая строка сохраняется
+            continue
+        # Внутри каждого абзаца — автоперенос по ширине
+        words = paragraph.split()
+        current = ""
+        for word in words:
+            test = (current + " " + word).strip()
+            if draw.textbbox((0, 0), test, font=font)[2] <= max_width:
+                current = test
+            else:
+                if current:
+                    result.append(current)
+                current = word
+        if current:
+            result.append(current)
+    return result or [""]
 
 
 def render_image(image_bytes, text, style, font_size):
@@ -101,9 +109,10 @@ def render_image(image_bytes, text, style, font_size):
     y_start = (h - total_h) // 2
 
     for i, line in enumerate(lines):
+        y = y_start + i * line_height
+        if line == "": continue
         bbox = draw.textbbox((0, 0), line, font=font)
         x = (w - (bbox[2] - bbox[0])) // 2
-        y = y_start + i * line_height
 
         if style == "1":  # Обычный — белый с тёмной тенью
             s = max(3, font_size // 15)
